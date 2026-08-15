@@ -18,6 +18,7 @@ fi
 
 rm -rf ffbuild
 mkdir ffbuild
+cp oggenc-attached-pic.patch ffbuild/
 
 FFMPEG_REPO="${FFMPEG_REPO:-https://github.com/FFmpeg/FFmpeg.git}"
 FFMPEG_REPO="${FFMPEG_REPO_OVERRIDE:-$FFMPEG_REPO}"
@@ -34,6 +35,13 @@ cat <<EOF >"$BUILD_SCRIPT"
 
     git clone --filter=blob:none --branch='$GIT_BRANCH' '$FFMPEG_REPO' ffmpeg
     cd ffmpeg
+
+    if git apply --check /ffbuild/oggenc-attached-pic.patch 2>/dev/null; then
+        git apply /ffbuild/oggenc-attached-pic.patch
+        echo "oggenc attached-pic patch applied"
+    else
+        echo "WARNING: oggenc-attached-pic.patch did not apply, skipping"
+    fi
 
     ./configure --prefix=/ffbuild/prefix --pkg-config-flags="--static" \$FFBUILD_TARGET_FLAGS \$FF_CONFIGURE \
         --extra-cflags="\$FF_CFLAGS" --extra-cxxflags="\$FF_CXXFLAGS" --extra-libs="\$FF_LIBS" \

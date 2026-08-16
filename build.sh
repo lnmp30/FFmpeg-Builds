@@ -36,11 +36,12 @@ cat <<EOF >"$BUILD_SCRIPT"
     git clone --filter=blob:none --branch='$GIT_BRANCH' '$FFMPEG_REPO' ffmpeg
     cd ffmpeg
 
-    if git apply --check /ffbuild/oggenc-attached-pic.patch 2>/dev/null; then
+    if git apply --check /ffbuild/oggenc-attached-pic.patch; then
         git apply /ffbuild/oggenc-attached-pic.patch
         echo "oggenc attached-pic patch applied"
     else
-        echo "WARNING: oggenc-attached-pic.patch did not apply, skipping"
+        echo "=== git apply details: ==="
+        git apply --check --verbose /ffbuild/oggenc-attached-pic.patch
     fi
 
     ./configure --prefix=/ffbuild/prefix --pkg-config-flags="--static" \$FFBUILD_TARGET_FLAGS \$FF_CONFIGURE \

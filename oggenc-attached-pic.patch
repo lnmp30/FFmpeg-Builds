@@ -340,7 +340,7 @@
 +        write = 0;
 +
 +    while (c->queue.head) {
-+        avpriv_packet_list_get(&c->queue, pkt);
++        ff_packet_list_get(&c->queue, pkt);
 +        if (write && (ret = ogg_write_packet_internal(s, pkt)) < 0)
 +            write = 0;
 +        av_packet_unref(pkt);
@@ -369,7 +369,7 @@
 +        if (pkt->stream_index == c->audio_stream_idx) {
 +            if (c->has_attached_pic) {
 +                /* buffer audio packets until we get all the pictures */
-+                ret = avpriv_packet_list_put(&c->queue, pkt, NULL, 0);
++                ret = ff_packet_list_put(&c->queue, pkt, NULL, 0);
 +                if (ret < 0) {
 +                    av_log(s, AV_LOG_ERROR, "Out of memory in packet queue; skipping attached pictures\n");
 +                    c->has_attached_pic = false;
@@ -422,7 +422,7 @@
          p = next;
      }
      ogg->page_list = NULL;
-+    avpriv_packet_list_free(&ogg->queue);
++    ff_packet_list_free(&ogg->queue);
  }
  
  #if CONFIG_OGG_MUXER

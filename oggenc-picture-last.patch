@@ -1,0 +1,26 @@
+--- a/libavformat/oggenc.c
++++ b/libavformat/oggenc.c
+@@ -549,6 +549,23 @@
+         oggstream->serial_num = serial_num;
+ 
+         av_dict_copy(&st->metadata, s->metadata, AV_DICT_DONT_OVERWRITE);
++
++        /* Write METADATA_BLOCK_PICTURE last in the comment list so that tag
++         * readers which stop at the huge base64 picture field still see all
++         * regular text tags first. */
++        ff_metadata_conv(&st->metadata, ff_vorbiscomment_metadata_conv, NULL);
++        if (av_dict_get(st->metadata, "METADATA_BLOCK_PICTURE", NULL, 0)) {
++            AVDictionary *tmp = NULL;
++            AVDictionaryEntry *t = NULL;
++            while ((t = av_dict_get(st->metadata, "", t, AV_DICT_IGNORE_SUFFIX))) {
++                if (strcmp(t->key, "METADATA_BLOCK_PICTURE"))
++                    av_dict_set(&tmp, t->key, t->value, 0);
++            }
++            t = av_dict_get(st->metadata, "METADATA_BLOCK_PICTURE", NULL, 0);
++            av_dict_set(&tmp, t->key, t->value, 0);
++            av_dict_free(&st->metadata);
++            st->metadata = tmp;
++        }
+ 
+         if (st->codecpar->codec_id == AV_CODEC_ID_FLAC) {
+             int err = ogg_build_flac_headers(st->codecpar, oggstream,

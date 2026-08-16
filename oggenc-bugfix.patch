@@ -1,0 +1,26 @@
+--- a/libavformat/oggenc.c
++++ b/libavformat/oggenc.c
+@@ -1004,7 +1004,10 @@
+         }
+     } else {
+         for (i = 0; i < s->nb_streams; i++) {
+-            OGGStreamContext *oggstream = s->streams[i]->priv_data;
++            AVStream *st = s->streams[i];
++            if (st->disposition & AV_DISPOSITION_ATTACHED_PIC)
++                continue;
++            OGGStreamContext *oggstream = st->priv_data;
+             if (oggstream->page.segments_count)
+                 ogg_buffer_page(s, oggstream);
+         }
+@@ -1020,7 +1023,10 @@
+ 
+     /* flush current page if needed */
+     for (i = 0; i < s->nb_streams; i++) {
+-        OGGStreamContext *oggstream = s->streams[i]->priv_data;
++        AVStream *st = s->streams[i];
++        if (st->disposition & AV_DISPOSITION_ATTACHED_PIC)
++            continue;
++        OGGStreamContext *oggstream = st->priv_data;
+ 
+         if (oggstream->page.segments_count)
+             ogg_buffer_page(s, oggstream);

@@ -18,7 +18,7 @@ fi
 
 rm -rf ffbuild
 mkdir ffbuild
-cp oggenc-attached-pic.patch ffbuild/
+cp oggenc-attached-pic.patch oggenc-bugfix.patch ffbuild/
 
 FFMPEG_REPO="${FFMPEG_REPO:-https://github.com/FFmpeg/FFmpeg.git}"
 FFMPEG_REPO="${FFMPEG_REPO_OVERRIDE:-$FFMPEG_REPO}"
@@ -38,6 +38,7 @@ cat <<EOF >"$BUILD_SCRIPT"
 
     if git apply --check /ffbuild/oggenc-attached-pic.patch; then
         git apply /ffbuild/oggenc-attached-pic.patch
+        git apply /ffbuild/oggenc-bugfix.patch
         echo "oggenc attached-pic patch applied"
     else
         echo "=== git apply details: ==="

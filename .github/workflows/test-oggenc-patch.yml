@@ -1,0 +1,74 @@
+name: Test oggenc attached pic
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'oggenc-attached-pic.patch'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential yasm pkg-config ffmpeg
+
+      - name: Build patched FFmpeg
+        run: |
+          set -e
+          git clone --depth 1 https://github.com/FFmpeg/FFmpeg.git ffmpeg
+          cd ffmpeg
+          git apply ../oggenc-attached-pic.patch
+          ./configure \
+            --disable-everything \
+            --enable-muxer=opus \
+            --enable-muxer=wav \
+            --enable-muxer=image2 \
+            --enable-demuxer=ogg \
+            --enable-demuxer=wav \
+            --enable-demuxer=image2 \
+            --enable-encoder=opus \
+            --enable-encoder=png \
+            --enable-encoder=pcm_s16le \
+            --enable-decoder=opus \
+            --enable-decoder=pcm_s16le \
+            --enable-parser=opus \
+            --enable-protocol=file \
+            --enable-indev=lavfi \
+            --enable-filter=sine \
+            --enable-filter=color
+          make -j$(nproc)
+
+      - name: Test cover art in Opus
+        run: |
+          set -e
+          # 生成测试输入：2秒正弦波 + 一张红色PNG
+          ffmpeg/ffmpeg -f lavfi -i "sine=frequency=1000:duration=2" -c:a pcm_s16le in.wav
+          ffmpeg/ffmpeg -f lavfi -i "color=c=red:s=64x64:duration=1" -frames:v 1 -c:v png cover.png
+          # 用打过补丁的 ffmpeg 封装成带封面的 opus
+          ffmpeg/ffmpeg -i in.wav -i cover.png \
+            -map 0:a -map 1:v \
+            -c:a opus -c:v png \
+            -disposition:v:0 attached_pic \
+            out.opus
+          echo "===== 文件流信息(应该只有一个音频流) ====="
+          ffprobe -show_streams out.opus
+          echo "===== 文件标签 ====="
+          ffprobe -show_entries format_tags out.opus
+          if ffprobe -show_entries format_tags out.opus 2>/dev/null | grep -q METADATA_BLOCK_PICTURE; then
+            echo "SUCCESS: 封面图已成功写入 Opus 标签"
+          else
+            echo "FAIL: 没有找到 METADATA_BLOCK_PICTURE"
+            exit 1
+          fi
+
+      - name: Upload result
+        uses: actions/upload-artifact@v4
+        with:
+          name: out-opus
+          path: out.opus

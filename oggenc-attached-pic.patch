@@ -1,6 +1,6 @@
 --- a/libavformat/oggenc.c
 +++ b/libavformat/oggenc.c
-@@ -22,19 +22,28 @@
+@@ -22,19 +22,27 @@
  #include "config_components.h"
  
  #include <stdint.h>

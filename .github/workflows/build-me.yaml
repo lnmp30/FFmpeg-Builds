@@ -43,6 +43,8 @@ jobs:
           IMG="${GITHUB_REPOSITORY,,}/base"
           IMG="${IMG// /-}"
           echo "name=ghcr.io/${IMG}" >> $GITHUB_OUTPUT
+      - name: Stop Commands
+        run: T="$(echo -n ${{ github.token }} | sha256sum | head -c 64)" && echo -e "::add-mask::${T}\n::stop-commands::${T}"
       - name: Build base image
         uses: docker/build-push-action@v7
         with:
@@ -102,6 +104,8 @@ jobs:
           IMG="${IMG// /-}"
           echo "name=ghcr.io/${IMG}" >> $GITHUB_OUTPUT
           echo "gh_repo=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
+      - name: Stop Commands
+        run: T="$(echo -n ${{ github.token }} | sha256sum | head -c 64)" && echo -e "::add-mask::${T}\n::stop-commands::${T}"
       - name: Build base-win64 image
         uses: docker/build-push-action@v7
         with:
@@ -145,6 +149,8 @@ jobs:
         id: dl_cache
         run: |
           echo "dltagname=$(DOCKER_TAG_SUFFIX= ./util/get_dl_cache_tag.sh)" >> $GITHUB_OUTPUT
+      - name: Stop Commands
+        run: T="$(echo -n ${{ github.token }} | sha256sum | head -c 64)" && echo -e "::add-mask::${T}\n::stop-commands::${T}"
       - name: Generate Dockerfile
         run: ./generate.sh win64 gpl-shared
       - name: Cache
@@ -196,6 +202,8 @@ jobs:
     needs: build_ffmpeg
     runs-on: ubuntu-latest
     steps:
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libarchive-tools p7zip-full
       - name: Free Disk-Space
         run: df -h && sudo apt-get clean && docker system prune -a -f && sudo rm -rf /opt/ghc /usr/local/.ghcup /usr/local/lib/android && df -h
       - name: Checkout
@@ -207,6 +215,7 @@ jobs:
           merge-multiple: true
           path: artifacts
       - name: Create release
+        id: create_release
         run: |
           set -xe
           shopt -s nullglob
@@ -214,6 +223,25 @@ jobs:
           NAME="Auto-Build $RELDATE"
           TAGNAME="autobuild-$(date +'%Y-%m-%d-%H-%M')"
           (cd artifacts && sha256sum *.{zip,tar.xz} > checksums.sha256)
-          gh release create "$TAGNAME" --target "master" --title "$NAME" artifacts/*.{zip,tar.xz} artifacts/checksums.*
+          ./util/release_body.sh "$TAGNAME" artifacts/*.{zip,tar.xz} > release_body.md
+          gh release create "$TAGNAME" --target "master" --title "$NAME" --notes-file release_body.md artifacts/*.{zip,tar.xz} artifacts/checksums.*
+          echo "tag_name=${TAGNAME}" >> $GITHUB_OUTPUT
+          echo "rel_date=${RELDATE}" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Update Latest
+        run: |
+          set -xe
+          shopt -s nullglob
+          mkdir latest_artifacts worktmpdir
+          sudo mount -o size=75%,uid="${UID}" -t tmpfs tmpfs ./worktmpdir
+          (cd worktmpdir && ../util/repack_latest.sh ../latest_artifacts ../artifacts/*.{zip,tar.xz})
+          (cd latest_artifacts && sha256sum *.{zip,tar.xz} > checksums.sha256)
+          NAME="Latest Auto-Build (${{ steps.create_release.outputs.rel_date }})"
+          TAGNAME="latest"
+          ./util/release_body.sh "$TAGNAME" latest_artifacts/*.{zip,tar.xz} > latest_body.md
+          gh release delete --cleanup-tag --yes "$TAGNAME" || true
+          sleep 15
+          gh release create "$TAGNAME" --target "master" --title "$NAME" --notes-file latest_body.md latest_artifacts/*
         env:
           GITHUB_TOKEN: ${{ github.token }}
